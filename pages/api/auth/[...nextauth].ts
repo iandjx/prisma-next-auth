@@ -65,7 +65,7 @@ const options = {
         console.log(token);
 
         const payload = {
-          name: token.name,
+          name: token?.name,
           email: token.email,
         };
 
