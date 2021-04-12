@@ -8,10 +8,60 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+
+}
+
+model Course {
+  id             String       @id @default(uuid())
+  name           String       @unique
+  cohorts        Int
+  modules        Module[]
+  precourses     Course[]     @relation("CoursePrecourses")
+  parentCourse   Course?      @relation("CoursePrecourses", fields: [parentCourseId], references: [id])
+  parentCourseId String?
+  products       Product[]
+  courseCode     String
+  canvasCourseId Int
+  price          Float?
+  Enrollment     Enrollment[]
+  strapiId       String?
+}
+
+model Module {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  topics   Topic[]
+  course   Course? @relation(fields: [courseId], references: [id])
+  courseId String?
+}
+
+model Topic {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  module   Module? @relation(fields: [moduleId], references: [id])
+  moduleId String?
+}
+
+model User {
+  id            Int          @id @default(autoincrement())
+  firstName     String?
+  lastName      String?
+  canvasUserId  Int?         @unique
+  enrollments   Enrollment[]
+  role          Role         @default(STUDENT)
+  logins        Login[]
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?    @map(name: "email_verified")
+  image         String?
+  createdAt     DateTime     @default(now()) @map(name: "created_at")
+  updatedAt     DateTime     @default(now()) @map(name: "updated_at")
+
+  @@map(name: "users")
 }
 
 model Account {
-  id                 Int       @default(autoincrement()) @id
+  id                 Int       @id @default(autoincrement())
   compoundId         String    @unique @map(name: "compound_id")
   userId             Int       @map(name: "user_id")
   providerType       String    @map(name: "provider_type")
@@ -23,15 +73,15 @@ model Account {
   createdAt          DateTime  @default(now()) @map(name: "created_at")
   updatedAt          DateTime  @default(now()) @map(name: "updated_at")
 
+
   @@index([providerAccountId], name: "providerAccountId")
   @@index([providerId], name: "providerId")
   @@index([userId], name: "userId")
-
   @@map(name: "accounts")
 }
 
 model Session {
-  id           Int      @default(autoincrement()) @id
+  id           Int      @id @default(autoincrement())
   userId       Int      @map(name: "user_id")
   expires      DateTime
   sessionToken String   @unique @map(name: "session_token")
@@ -42,20 +92,8 @@ model Session {
   @@map(name: "sessions")
 }
 
-model User {
-  id            Int       @default(autoincrement()) @id
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime? @map(name: "email_verified")
-  image         String?
-  createdAt     DateTime  @default(now()) @map(name: "created_at")
-  updatedAt     DateTime  @default(now()) @map(name: "updated_at")
-
-  @@map(name: "users")
-}
-
 model VerificationRequest {
-  id         Int      @default(autoincrement()) @id
+  id         Int      @id @default(autoincrement())
   identifier String
   token      String   @unique
   expires    DateTime
@@ -63,4 +101,84 @@ model VerificationRequest {
   updatedAt  DateTime @default(now()) @map(name: "updated_at")
 
   @@map(name: "verification_requests")
+}
+
+model Login {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  provider Provider
+  loginId  String
+  password String?
+}
+
+model Enrollment {
+  id        String           @id @default(uuid())
+  startDate DateTime?
+  endDate   DateTime?
+  product   Product?         @relation(fields: [productId], references: [id])
+  productId String?
+  student   User             @relation(fields: [studentId], references: [id])
+  studentId Int
+  invoice   Invoice[]
+  state     EnrollmentStatus @default(CANVAS_USER_ALLOCATED)
+  course    Course           @relation(fields: [courseId], references: [id])
+  courseId  String
+}
+
+model Invoice {
+  id                  String        @id @default(uuid())
+  amount              Float
+  status              InvoiceStatus
+  billingMethod       String
+  enrollment          Enrollment?   @relation(fields: [enrollmentId], references: [id])
+  enrollmentId        String?
+  orderId             String?
+  payPalEmailAddress  String?
+  createdAt           DateTime?     @default(now())
+  updatedAt           DateTime?     @updatedAt
+  paymongocheckoutUrl String?
+}
+
+model Product {
+  id             String       @id @default(uuid())
+  name           String       @unique
+  stock          Int
+  courses        Course[]
+  isActive       Boolean
+  isSubscription Boolean
+  price          Float
+  enrollments    Enrollment[]
+}
+
+enum InvoiceStatus {
+  APPROVED
+  DECLINED
+  PENDING
+}
+
+enum Provider {
+  facebook
+  google
+  email
+}
+
+enum EnrollmentStatus {
+  CANVAS_USER_ALLOCATED
+  CANVAS_COURSE_ALLOCATED
+  UNAPPROVED
+  SAT_EXAM
+  TO_BE_INTERVIEWED
+  DENIED
+  APPROVED
+  UNPAID
+  PAID
+  UNENROLLED
+  ENROLLED
+}
+
+enum Role {
+  STUDENT
+  STAFF
+  ADMIN
 }
